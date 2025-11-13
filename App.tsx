@@ -181,7 +181,7 @@ export default function App() {
         try {
             const apiKey = process.env.API_KEY;
             if (!apiKey) {
-                throw new Error("API Key not found. Please ensure the API_KEY environment variable is configured in your deployment environment.");
+                throw new Error("API Key not found.");
             }
             const ai = new GoogleGenAI({ apiKey });
             
