@@ -53,9 +53,8 @@ export default function App() {
     const [theme, setTheme] = useState<'dark' | 'light'>('dark');
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-    const [isApiKeySelected, setIsApiKeySelected] = useState(false);
-    const [isCheckingApiKey, setIsCheckingApiKey] = useState(true);
-
+    const [apiKey, setApiKey] = useState<string | null>(null);
+    
     const sessionPromiseRef = useRef<LiveSessionPromise | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
     const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -74,21 +73,6 @@ export default function App() {
             document.documentElement.classList.remove('dark');
         }
     }, [theme]);
-
-    useEffect(() => {
-        const checkKey = async () => {
-            setIsCheckingApiKey(true);
-            try {
-                const hasKey = await window.aistudio.hasSelectedApiKey();
-                setIsApiKeySelected(hasKey);
-            } catch (e) {
-                console.error("Error checking for API key:", e);
-                setIsApiKeySelected(false);
-            }
-            setIsCheckingApiKey(false);
-        };
-        checkKey();
-    }, []);
     
     const handleMessage = useCallback(async (message: LiveServerMessage) => {
         if (message.serverContent?.outputTranscription) {
@@ -183,8 +167,8 @@ export default function App() {
         let errorMessage = e instanceof ErrorEvent ? e.message : `Connection closed: ${e.code}`;
         
         if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found')) {
-            errorMessage = "The selected API Key is invalid or has expired. Please select a new one.";
-            setIsApiKeySelected(false);
+            errorMessage = "The provided API Key is invalid or has expired. Please provide a new one.";
+            setApiKey(null);
         }
         
         setError(errorMessage);
@@ -197,9 +181,14 @@ export default function App() {
         setError(null);
         setTranscript([]);
 
+        if (!apiKey) {
+            setError("API Key not provided.");
+            setAppState(AppState.Error);
+            return;
+        }
+
         try {
-            // A new instance is created for each conversation to ensure the latest API key is used.
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey });
             
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -245,23 +234,13 @@ export default function App() {
             console.error(err);
             let errorMessage = err.message;
              if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found')) {
-                errorMessage = "The selected API Key is invalid or expired. Please select a new one.";
-                setIsApiKeySelected(false);
+                errorMessage = "The provided API Key is invalid or expired. Please provide a new one.";
+                setApiKey(null);
             }
             setError(errorMessage);
             setAppState(AppState.Error);
         }
-    }, [selectedLanguage, handleMessage, handleError, stopConversation, appState]);
-
-    const handleSelectKey = async () => {
-        try {
-            await window.aistudio.openSelectKey();
-            // Optimistically set to true. The next API call will validate the key.
-            setIsApiKeySelected(true);
-        } catch (e) {
-            console.error("Could not open API key selection:", e);
-        }
-    };
+    }, [selectedLanguage, handleMessage, handleError, stopConversation, appState, apiKey]);
 
     useEffect(() => {
         return () => {
@@ -269,39 +248,52 @@ export default function App() {
         };
     }, [stopConversation]);
 
-    if (isCheckingApiKey) {
-        return (
-            <div className="fixed inset-0 bg-white dark:bg-gray-900 flex items-center justify-center">
-                <svg className="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
-        );
-    }
+    const ApiKeyForm = () => {
+        const [tempApiKey, setTempApiKey] = useState('');
 
-    if (!isApiKeySelected) {
+        const handleSubmit = (e: React.FormEvent) => {
+            e.preventDefault();
+            if (tempApiKey.trim()) {
+                setApiKey(tempApiKey.trim());
+            }
+        };
+
         return (
             <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-4 text-center font-sans">
-                <div className="max-w-lg">
+                <div className="max-w-lg w-full">
                     <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text mb-4 py-2">
                         Welcome to Langlab.io
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-                        To start your interactive language lesson, you'll need to select a Gemini API key. Your key is used to securely access the AI model.
+                        To start your interactive language lesson, please enter your Google Gemini API key.
                     </p>
-                    <button
-                        onClick={handleSelectKey}
-                        className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-300 transform hover:scale-105"
-                    >
-                        Select API Key
-                    </button>
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4 items-center">
+                        <input
+                            type="password"
+                            value={tempApiKey}
+                            onChange={(e) => setTempApiKey(e.target.value)}
+                            placeholder="Enter your Gemini API Key"
+                            className="w-full max-w-md px-4 py-3 bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-center text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                            aria-label="Gemini API Key"
+                        />
+                        <button
+                            type="submit"
+                            className="w-full max-w-md px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+                            disabled={!tempApiKey.trim()}
+                        >
+                            Start Learning
+                        </button>
+                    </form>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-6">
-                        Using the Gemini API may incur costs. Please review the <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">billing documentation</a> for details.
+                        Your key is stored only in your browser for this session. <a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">Get an API Key</a>.
                     </p>
                 </div>
             </div>
         );
+    };
+
+    if (!apiKey) {
+        return <ApiKeyForm />;
     }
     
     const isConversationActive = appState === AppState.Listening || appState === AppState.Connecting;
