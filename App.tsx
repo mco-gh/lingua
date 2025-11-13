@@ -1,7 +1,5 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-// Fix: Removed `LiveSession` as it's not an exported member of '@google/genai'.
-// A type helper `LiveSessionPromise` is defined below to infer the correct type.
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { AppState, LanguageOption, TranscriptEntry } from './types';
 import LanguageSelector from './components/LanguageSelector';
@@ -9,7 +7,6 @@ import ConversationDisplay from './components/ConversationDisplay';
 import StatusIndicator from './components/StatusIndicator';
 import { createBlobFromAudio, decode, decodeAudioData } from './utils/audio';
 
-// Fix: Define a type for the session promise to avoid importing LiveSession, which is not an exported member.
 type GeminiAI = InstanceType<typeof GoogleGenAI>;
 type LiveSessionPromise = ReturnType<GeminiAI['live']['connect']>;
 
@@ -48,7 +45,6 @@ const StopIcon = () => (
         <path fillRule="evenodd" d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" clipRule="evenodd" />
     </svg>
 );
-
 
 export default function App() {
     const [appState, setAppState] = useState<AppState>(AppState.Idle);
@@ -170,8 +166,8 @@ export default function App() {
         console.error(e);
         let errorMessage = e instanceof ErrorEvent ? e.message : `Connection closed: ${e.code}`;
         
-        if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found')) {
-            errorMessage = "The provided API Key is invalid. Please check your environment configuration.";
+        if (errorMessage?.includes('API key not valid')) {
+            errorMessage = "The provided API Key is invalid or missing permissions.";
         }
         
         setError(errorMessage);
@@ -184,12 +180,14 @@ export default function App() {
         setError(null);
         setTranscript([]);
 
+        const apiKey = process.env.API_KEY;
+        if (!apiKey) {
+            setError("API Key not found. Please set the API_KEY environment variable in your deployment settings.");
+            setAppState(AppState.Error);
+            return;
+        }
+
         try {
-            // Fix: Use process.env.API_KEY as per the guidelines, instead of import.meta.env.
-            const apiKey = process.env.API_KEY;
-            if (!apiKey) {
-                throw new Error("API Key not found. Make sure API_KEY is set in your environment variables.");
-            }
             const ai = new GoogleGenAI({ apiKey });
             
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -200,7 +198,13 @@ export default function App() {
                     onopen: () => setAppState(AppState.Listening),
                     onmessage: handleMessage,
                     onerror: handleError,
-                    onclose: (e) => console.log('closed', e),
+                    onclose: (e) => {
+                        // Don't call stopConversation if we are already in an error state,
+                        // as handleError would have already handled the cleanup.
+                        if (appState !== AppState.Error) {
+                            stopConversation();
+                        }
+                    },
                 },
                 config: {
                     responseModalities: [Modality.AUDIO],
@@ -231,13 +235,13 @@ export default function App() {
         } catch (err: any) {
             console.error(err);
             let errorMessage = err.message;
-             if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found.')) {
-                errorMessage = "The provided API Key is invalid. Please check your environment configuration.";
+             if (errorMessage?.includes('API key not valid')) {
+                errorMessage = "The provided API Key is invalid.";
             }
             setError(errorMessage);
             setAppState(AppState.Error);
         }
-    }, [selectedLanguage, handleMessage, handleError]);
+    }, [selectedLanguage, handleMessage, handleError, stopConversation, appState]);
 
     useEffect(() => {
         return () => {
@@ -284,8 +288,9 @@ export default function App() {
                             : 'bg-blue-600 hover:bg-blue-700'}
                         text-white shadow-lg focus:outline-none focus:ring-4 focus:ring-opacity-50
                         ${isConversationActive ? 'focus:ring-red-500' : 'focus:ring-blue-500'}
-                        disabled:bg-gray-500 disabled:cursor-wait
+                        disabled:bg-gray-500 disabled:cursor-not-allowed
                     `}
+                    aria-label={isConversationActive ? 'Stop conversation' : 'Start conversation'}
                 >
                     {isConversationActive ? <StopIcon /> : <MicIcon />}
                 </button>
