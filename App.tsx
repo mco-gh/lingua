@@ -63,7 +63,7 @@ export default function App() {
     const currentOutputTranscriptionRef = useRef('');
     const nextAudioStartTimeRef = useRef(0);
     const audioPlaybackSources = useRef<Set<AudioBufferSourceNode>>(new Set());
-    
+
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -162,14 +162,13 @@ export default function App() {
 
     const handleError = useCallback((e: ErrorEvent | CloseEvent) => {
         console.error(e);
-        const errorMessage = e instanceof ErrorEvent ? e.message : `Connection closed: ${e.code}`;
+        let errorMessage = e instanceof ErrorEvent ? e.message : `Connection closed: ${e.code}`;
         
-        if (errorMessage?.includes('Requested entity was not found.')) {
-            setError("API Key is invalid. Please check the API_KEY environment variable in your deployment.");
-        } else {
-             setError(errorMessage);
+        if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found')) {
+            errorMessage = "The provided API Key is invalid. Please check your environment configuration.";
         }
         
+        setError(errorMessage);
         setAppState(AppState.Error);
         stopConversation();
     }, [stopConversation]);
@@ -180,7 +179,11 @@ export default function App() {
         setTranscript([]);
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const apiKey = process.env.API_KEY;
+            if (!apiKey) {
+                throw new Error("API Key not found. Please ensure the API_KEY environment variable is configured in your deployment environment.");
+            }
+            const ai = new GoogleGenAI({ apiKey });
             
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -220,13 +223,11 @@ export default function App() {
             
         } catch (err: any) {
             console.error(err);
-             if (err.message?.includes('API Key must be set')) {
-                setError("API Key is not configured. Please set the API_KEY environment variable in your deployment.");
-            } else if (err.message?.includes('Requested entity was not found.')) {
-                setError("API Key is invalid. Please check the API_KEY environment variable in your deployment.");
-            } else {
-                setError(err.message);
+            let errorMessage = err.message;
+             if (errorMessage?.includes('API key not valid') || errorMessage?.includes('Requested entity was not found.')) {
+                errorMessage = "The provided API Key is invalid. Please check your environment configuration.";
             }
+            setError(errorMessage);
             setAppState(AppState.Error);
         }
     }, [selectedLanguage, handleMessage, handleError]);
