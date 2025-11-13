@@ -1,11 +1,17 @@
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality } from '@google/genai';
+// Fix: Removed `LiveSession` as it's not an exported member of '@google/genai'.
+// A type helper `LiveSessionPromise` is defined below to infer the correct type.
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { AppState, LanguageOption, TranscriptEntry } from './types';
 import LanguageSelector from './components/LanguageSelector';
 import ConversationDisplay from './components/ConversationDisplay';
 import StatusIndicator from './components/StatusIndicator';
 import { createBlobFromAudio, decode, decodeAudioData } from './utils/audio';
+
+// Fix: Define a type for the session promise to avoid importing LiveSession, which is not an exported member.
+type GeminiAI = InstanceType<typeof GoogleGenAI>;
+type LiveSessionPromise = ReturnType<GeminiAI['live']['connect']>;
 
 const languageOptions: LanguageOption[] = [
     { code: 'en-US', name: 'English', emoji: '🇬🇧' },
@@ -53,7 +59,7 @@ export default function App() {
     const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
     const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
-    const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
+    const sessionPromiseRef = useRef<LiveSessionPromise | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
     const outputAudioContextRef = useRef<AudioContext | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -179,9 +185,10 @@ export default function App() {
         setTranscript([]);
 
         try {
+            // Fix: Use process.env.API_KEY as per the guidelines, instead of import.meta.env.
             const apiKey = process.env.API_KEY;
             if (!apiKey) {
-                throw new Error("API Key not found.");
+                throw new Error("API Key not found. Make sure API_KEY is set in your environment variables.");
             }
             const ai = new GoogleGenAI({ apiKey });
             
