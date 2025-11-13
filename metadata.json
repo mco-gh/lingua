@@ -1,5 +1,5 @@
 {
-  "name": "Gemini Language Partner",
+  "name": "Langlab.io",
   "description": "An interactive language learning application that provides a real-time conversational AI partner for practice, powered by the Gemini Live API.",
   "requestFramePermissions": [
     "microphone"

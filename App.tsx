@@ -233,10 +233,10 @@ export default function App() {
                     <button onClick={() => setIsConfigModalOpen(true)} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">Config</button>
                     <button onClick={() => setIsAboutModalOpen(true)} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">About</button>
                 </div>
-                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text">
-                    Lingua
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text mb-1 py-2">
+                    Langlab.io
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-2">Practice speaking a new language with your AI tutor.</p>
+                <p className="text-gray-500 dark:text-gray-400">Practice speaking a new language with your AI tutor.</p>
             </header>
 
             <main className="w-full max-w-4xl flex-1 flex flex-col items-center gap-6">
@@ -274,7 +274,7 @@ export default function App() {
                 <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 transition-opacity" onClick={() => setIsAboutModalOpen(false)}>
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 max-w-md w-full relative text-gray-900 dark:text-white" onClick={e => e.stopPropagation()}>
                         <button onClick={() => setIsAboutModalOpen(false)} className="absolute top-3 right-3 text-2xl font-bold text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">&times;</button>
-                        <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text">About Lingua</h2>
+                        <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-transparent bg-clip-text">About Langlab.io</h2>
                         <p className="mb-6 text-gray-600 dark:text-gray-300">This is an interactive language learning application that provides a real-time conversational AI partner for practice, powered by the Gemini Live API.</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Made with ❤️ by <a href="https://mco.dev/about" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:underline">Marc</a></p>
                     </div>
