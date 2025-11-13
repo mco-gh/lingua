@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality } from '@google/genai';
 import { AppState, LanguageOption, TranscriptEntry } from './types';
@@ -70,7 +71,7 @@ export default function App() {
             document.documentElement.classList.remove('dark');
         }
     }, [theme]);
-
+    
     const handleMessage = useCallback(async (message: LiveServerMessage) => {
         if (message.serverContent?.outputTranscription) {
             currentOutputTranscriptionRef.current += message.serverContent.outputTranscription.text;
@@ -124,13 +125,54 @@ export default function App() {
         }
     }, []);
 
+    const stopConversation = useCallback(() => {
+        if (sessionPromiseRef.current) {
+            sessionPromiseRef.current.then(session => session.close());
+            sessionPromiseRef.current = null;
+        }
+
+        if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach(track => track.stop());
+            mediaStreamRef.current = null;
+        }
+
+        if (scriptProcessorRef.current) {
+            scriptProcessorRef.current.disconnect();
+            scriptProcessorRef.current = null;
+        }
+        
+        if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
+            inputAudioContextRef.current.close();
+            inputAudioContextRef.current = null;
+        }
+        
+        if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
+            outputAudioContextRef.current.close();
+            outputAudioContextRef.current = null;
+        }
+
+        for (const source of audioPlaybackSources.current.values()) {
+            source.stop();
+        }
+        audioPlaybackSources.current.clear();
+        nextAudioStartTimeRef.current = 0;
+        
+        setAppState(AppState.Idle);
+    }, []);
+
     const handleError = useCallback((e: ErrorEvent | CloseEvent) => {
         console.error(e);
         const errorMessage = e instanceof ErrorEvent ? e.message : `Connection closed: ${e.code}`;
-        setError(errorMessage);
+        
+        if (errorMessage?.includes('Requested entity was not found.')) {
+            setError("API Key is invalid. Please check the API_KEY environment variable in your deployment.");
+        } else {
+             setError(errorMessage);
+        }
+        
         setAppState(AppState.Error);
         stopConversation();
-    }, []);
+    }, [stopConversation]);
 
     const startConversation = useCallback(async () => {
         setAppState(AppState.Connecting);
@@ -178,45 +220,16 @@ export default function App() {
             
         } catch (err: any) {
             console.error(err);
-            setError(err.message);
+             if (err.message?.includes('API Key must be set')) {
+                setError("API Key is not configured. Please set the API_KEY environment variable in your deployment.");
+            } else if (err.message?.includes('Requested entity was not found.')) {
+                setError("API Key is invalid. Please check the API_KEY environment variable in your deployment.");
+            } else {
+                setError(err.message);
+            }
             setAppState(AppState.Error);
         }
     }, [selectedLanguage, handleMessage, handleError]);
-
-    const stopConversation = useCallback(() => {
-        if (sessionPromiseRef.current) {
-            sessionPromiseRef.current.then(session => session.close());
-            sessionPromiseRef.current = null;
-        }
-
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach(track => track.stop());
-            mediaStreamRef.current = null;
-        }
-
-        if (scriptProcessorRef.current) {
-            scriptProcessorRef.current.disconnect();
-            scriptProcessorRef.current = null;
-        }
-        
-        if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
-            inputAudioContextRef.current.close();
-            inputAudioContextRef.current = null;
-        }
-        
-        if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
-            outputAudioContextRef.current.close();
-            outputAudioContextRef.current = null;
-        }
-
-        for (const source of audioPlaybackSources.current.values()) {
-            source.stop();
-        }
-        audioPlaybackSources.current.clear();
-        nextAudioStartTimeRef.current = 0;
-        
-        setAppState(AppState.Idle);
-    }, []);
 
     useEffect(() => {
         return () => {
