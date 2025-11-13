@@ -284,9 +284,10 @@ export default function App() {
                             Start Learning
                         </button>
                     </form>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-6">
-                        Your key is stored only in your browser for this session. <a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">Get an API Key</a>.
-                    </p>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-6">
+                        <p>Your key is stored only in your browser for this session. <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">Get an API Key</a>.</p>
+                        <p><a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-500">Read more about API keys</a>.</p>
+                    </div>
                 </div>
             </div>
         );
